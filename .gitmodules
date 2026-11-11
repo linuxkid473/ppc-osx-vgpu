@@ -1,5 +1,5 @@
 [submodule "qemu"]
 	path = qemu
-	url = https://github.com/linuxkid473/poweremu-qemu.git
-	branch = r300
+	url = https://github.com/G-Nug85/poweremu-qemu.git
+	branch = fix/linux-radeon-display
 	shallow = true
