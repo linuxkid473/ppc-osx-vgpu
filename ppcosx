@@ -762,7 +762,16 @@ build_common() {   # $1 = disk, $2 = "cd" when booting from CD
     local HOST_UI
     local AUDIO
     if [ "$IS_MAC" = 1 ]; then AUDIO=coreaudio; HOST_UI=(-display cocoa)
-    else AUDIO=pa; HOST_UI=(-display gtk,zoom-to-fit=on); fi
+    else
+        AUDIO=pa
+        local display=gtk,zoom-to-fit=on
+        # Keep a pointer visible while the Radeon tablet is active and
+        # the guest has yet to supply its hardware cursor.
+        if [ "${2:-}" != cd ] && [ "$MODE" = radeon ] && [ "$CARD" = 9700 ]; then
+            display="$display,show-cursor=on"
+        fi
+        HOST_UI=(-display "$display")
+    fi
     # --no-audio: the Mac still has its sound chip, but nothing reaches
     # the host's audio system (for hosts where that misbehaves).
     [ "$NO_AUDIO" = 1 ] && AUDIO=none
@@ -901,7 +910,13 @@ cmd_run() {
 
     build_common "$DISK"
     [ "$VERBOSE" = 1 ] && QARGS+=(-prom-env 'boot-args=-v')
-    QARGS+=(-usb -device usb-mouse,bus=usb-bus.0 -device usb-kbd,bus=usb-bus.0)
+    if [ "$IS_MAC" = 0 ] && [ "$MODE" = radeon ] && [ "$CARD" = 9700 ]; then
+        # -usb on mac99 also adds a relative mouse. Give GTK a single
+        # pointer device so it stays in absolute mode.
+        QARGS+=(-device pci-ohci -device usb-kbd,bus=usb-bus.0)
+    else
+        QARGS+=(-usb -device usb-mouse,bus=usb-bus.0 -device usb-kbd,bus=usb-bus.0)
+    fi
     if [ -n "$CD" ]; then
         dvd_image "$CD"
         QARGS+=(-drive "if=none,media=cdrom,id=cd,readonly=on,file=$DVD_PATH"
@@ -974,6 +989,8 @@ cmd_run() {
     add_net
     if [ "$IS_MAC" = 1 ]; then
         hint "Release the mouse: Ctrl+Option+G.  Quit: shut down Mac OS X, or Cmd+Q the QEMU window."
+    elif [ "$MODE" = radeon ] && [ "$CARD" = 9700 ]; then
+        hint "Move the mouse inside the window to use the tablet.  Quit: shut down Mac OS X, or close the QEMU window."
     else
         hint "Release the mouse: Ctrl+Alt+G.  Quit: shut down Mac OS X, or close the QEMU window."
     fi
