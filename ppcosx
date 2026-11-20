@@ -473,9 +473,11 @@ setup_build() {
     ok "qemu/ at $(git -C "$QEMU_DIR" rev-parse --short HEAD 2>/dev/null || echo '?')"
 
     # QEMU's configure needs a Python with distlib, which recent Homebrew
-    # Pythons no longer bundle; keep a small private venv for it.
+    # Pythons no longer bundle, and with tomli when it is older than 3.11
+    # (no tomllib), such as the Command Line Tools' 3.9; keep a small
+    # private venv for it.
     local venv="$REPO/.pyvenv"
-    if ! "$venv/bin/python3" -c 'import distlib' >/dev/null 2>&1; then
+    if ! "$venv/bin/python3" -c 'import sys, distlib; sys.version_info >= (3, 11) or __import__("tomli")' >/dev/null 2>&1; then
         say "Preparing a Python environment for the build"
         rm -rf "$venv"
         # On macOS, build the venv from Homebrew's own python3, not whatever
@@ -489,7 +491,7 @@ setup_build() {
              [ -x "$(brew --prefix)/opt/python@3/libexec/bin/python3" ]; then
             py="$(brew --prefix)/opt/python@3/libexec/bin/python3"
         fi
-        "$py" -m venv "$venv" && "$venv/bin/python3" -m pip install -q distlib \
+        "$py" -m venv "$venv" && "$venv/bin/python3" -m pip install -q distlib 'tomli; python_version < "3.11"' \
             || die "could not create the Python venv in .pyvenv (python3 -m venv / pip failed)"
     fi
     ok "Python $("$venv/bin/python3" -c 'import platform; print(platform.python_version())') with distlib"
